@@ -25,7 +25,7 @@ def apply_activate(data, output_info):
             st = ed
         elif item[1] == 'softmax':
             ed = st + item[0]
-            data_t.append(F.softmax(data[:, st:ed]))
+            data_t.append(F.softmax(data[:, st:ed], dim=1))
             st = ed
         else:
             assert 0

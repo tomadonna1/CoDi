@@ -262,14 +262,18 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                 try:
                     model.fit(x_trains[0], y_trains[0])
                 except:
-                    pass 
+                    # pass 
+                    continue
                 
                 if len(unique_labels) != len(np.unique(y_valid)):
                     pred = [unique_labels[0]] * len(x_valid)
                     pred_prob = np.array([1.] * len(x_valid))
                 else:
-                    pred = model.predict(x_valid)
-                    pred_prob = model.predict_proba(x_valid)
+                    try:
+                        pred = model.predict(x_valid)
+                        pred_prob = model.predict_proba(x_valid)
+                    except:
+                        continue
 
                 macro_f1 = f1_score(y_valid, pred, average='macro')
                 weighted_f1 = _weighted_f1(y_valid, pred)
@@ -304,8 +308,11 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                     }
                 )
 
-            results = pd.DataFrame(results)   
-            best_f1_scores.append(results.values[results.macro_f1.idxmax()])
+            if results:
+                results = pd.DataFrame(results)   
+                best_f1_scores.append(results.values[results.macro_f1.idxmax()])
+            else:
+                best_f1_scores.append([model_repr, {}, 0.0, 0.0, None, 0.0])
 
     else:
         params = eval
@@ -321,7 +328,8 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                     try:
                         best_model.fit(x_train, y_train)
                     except:
-                        pass 
+                        # pass 
+                        continue
 
                     unique_labels = np.unique(y_train)
 
@@ -329,8 +337,11 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                         pred = [unique_labels[0]] * len(x_test)
                         pred_prob = np.array([1.] * len(x_test))
                     else:
-                        pred = best_model.predict(x_test)
-                        pred_prob = best_model.predict_proba(x_test)
+                        try:
+                            pred = best_model.predict(x_test)
+                            pred_prob = best_model.predict_proba(x_test)
+                        except:
+                            continue
 
                     macro_f1 = f1_score(y_test, pred, average='macro')
                     weighted_f1 = _weighted_f1(y_test, pred)
@@ -350,7 +361,10 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                             except:
                                 tmp.append(pred_prob[:, np.newaxis].reshape(x_test.shape[0],1))
                             j += 1
-                    roc_auc = roc_auc_score(np.eye(size)[y_test], np.hstack(tmp), multi_class='ovr')
+                    try:
+                        roc_auc = roc_auc_score(np.eye(size)[y_test], np.hstack(tmp), multi_class='ovr')
+                    except:
+                        roc_auc = None
                         
                     best_scores.append(
                         {   
@@ -361,7 +375,10 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                             "accuracy": acc
                         }
                     )
-                return pd.DataFrame(best_scores).mean(axis=0)
+                # return pd.DataFrame(best_scores).mean(axis=0)
+                return pd.DataFrame(best_scores).mean(axis=0) if best_scores else pd.Series({
+                    "name": model_repr, "macro_f1": 0.0, "weighted_f1": 0.0, "roc_auc": None, "accuracy": 0.0
+                })
 
             def _df(dataframe):
                 return {
@@ -372,7 +389,15 @@ def _evaluate_multi_classification(train, test, fake, metadata, eval):
                     "accuracy": dataframe.accuracy,
                 }
 
-            best_f1_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            # best_f1_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            # i+=1
+            if i < len(params['param']):
+                best_f1_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            else:
+                best_f1_scores.append({
+                    "name": model_repr, "macro_f1": 0.0, "roc_auc": None, 
+                    "weighted_f1": 0.0, "accuracy": 0.0
+                })
             i+=1
 
     if eval is None:
@@ -403,14 +428,18 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                 try:
                     model.fit(x_trains[0], y_trains[0])
                 except ValueError:
-                    pass
+                    # pass
+                    continue
 
                 if len(unique_labels) == 1:
                     pred = [unique_labels[0]] * len(x_valid)
                     pred_prob = np.array([1.] * len(x_valid))
                 else:
-                    pred = model.predict(x_valid)
-                    pred_prob = model.predict_proba(x_valid)
+                    try:
+                        pred = model.predict(x_valid)
+                        pred_prob = model.predict_proba(x_valid)
+                    except:
+                        continue
 
                 binary_f1 = f1_score(y_valid, pred, average='binary')
                 weighted_f1 = _weighted_f1(y_valid, pred)
@@ -433,7 +462,10 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                         except:
                             tmp.append(pred_prob[:, np.newaxis].reshape(x_valid.shape[0],1))
                         j += 1
-                roc_auc = roc_auc_score(np.eye(size)[y_valid], np.hstack(tmp))
+                try:
+                    roc_auc = roc_auc_score(np.eye(size)[y_valid], np.hstack(tmp))
+                except:
+                    roc_auc = None
 
                 results.append(
                     {   
@@ -449,8 +481,11 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                     }
                 )
 
-            results = pd.DataFrame(results)  
-            best_f1_scores.append(results.values[results.binary_f1.idxmax()])
+            if results:
+                results = pd.DataFrame(results)  
+                best_f1_scores.append(results.values[results.binary_f1.idxmax()])
+            else:
+                best_f1_scores.append([model_repr, {}, 0.0, 0.0, None, 0.0, 0.0, 0.0, 0.0])
     else:
         params = eval
         i=0
@@ -465,15 +500,19 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                     try:
                         best_model.fit(x_train, y_train)
                     except ValueError:
-                        pass
+                        # pass
+                        continue
                     unique_labels = np.unique(y_train)
 
                     if len(unique_labels) == 1:
                         pred = [unique_labels[0]] * len(x_test)
                         pred_prob = np.array([1.] * len(x_test))
                     else:
-                        pred = best_model.predict(x_test)
-                        pred_prob = best_model.predict_proba(x_test)
+                        try:
+                            pred = best_model.predict(x_test)
+                            pred_prob = best_model.predict_proba(x_test)
+                        except:
+                            continue
 
                     binary_f1 = f1_score(y_test, pred, average='binary')
                     weighted_f1 = _weighted_f1(y_test, pred)
@@ -499,7 +538,8 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                     try:
                         roc_auc = roc_auc_score(np.eye(size)[y_test], np.hstack(tmp))
                     except ValueError:
-                        roc_auc = roc_auc_score(np.eye(size)[y_test], np.hstack(tmp))
+                        # roc_auc = roc_auc_score(np.eye(size)[y_test], np.hstack(tmp))
+                        roc_auc = None
 
                     best_scores.append(
                         {   
@@ -514,7 +554,10 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                             "macro_f1": macro_f1
                         }
                     )
-                return pd.DataFrame(best_scores).mean(axis=0)
+                return pd.DataFrame(best_scores).mean(axis=0) if best_scores else pd.Series({
+                    "name": model_repr, "binary_f1": 0.0, "weighted_f1": 0.0, "roc_auc": None, 
+                    "accuracy": 0.0, "precision": 0.0, "recall": 0.0, "macro_f1": 0.0
+                })
 
             def _df(dataframe):
                 return {
@@ -525,7 +568,13 @@ def _evaluate_binary_classification(train, test, fake, metadata, eval):
                     "accuracy": dataframe.accuracy,
                 }
 
-            best_f1_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            if i < len(params['param']):
+                best_f1_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            else:
+                best_f1_scores.append({
+                    "name": model_repr, "binary_f1": 0.0, "roc_auc": None, 
+                    "weighted_f1": 0.0, "accuracy": 0.0
+                })
             i+=1
 
     if eval is None:
@@ -556,8 +605,11 @@ def _evaluate_regression(train, test, fake, metadata, eval):
             results = []
             for param in tqdm(param_set):
                 model = model_class(**param)
-                model.fit(x_trains[0], y_trains[0])
-                pred = model.predict(x_valid)
+                try:
+                    model.fit(x_trains[0], y_trains[0])
+                    pred = model.predict(x_valid)
+                except:
+                    continue
 
                 r2 = r2_score(y_valid, pred)
                 explained_variance = explained_variance_score(y_valid, pred)
@@ -577,10 +629,11 @@ def _evaluate_regression(train, test, fake, metadata, eval):
                     }
                 )
 
-            results = pd.DataFrame(results)
-
-            
-            best_r2_scores.append(results.values[results.r2.idxmax()])
+            if results:
+                results = pd.DataFrame(results)
+                best_r2_scores.append(results.values[results.r2.idxmax()])
+            else:
+                best_r2_scores.append([model_repr, {}, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     else:
         y_test = np.log(np.clip(y_test, 1, None))
@@ -594,9 +647,11 @@ def _evaluate_regression(train, test, fake, metadata, eval):
             def _calc(best_model):
                 best_scores = []
                 for x_train, y_train in zip(x_trains, y_trains):
-
-                    best_model.fit(x_train, y_train)
-                    pred = best_model.predict(x_test)
+                    try:
+                        best_model.fit(x_train, y_train)
+                        pred = best_model.predict(x_test)
+                    except:
+                        continue
 
                     r2 = r2_score(y_test, pred)
                     explained_variance = explained_variance_score(y_test, pred)
@@ -615,7 +670,10 @@ def _evaluate_regression(train, test, fake, metadata, eval):
                         }
                     )
 
-                return pd.DataFrame(best_scores).mean(axis=0)
+                return pd.DataFrame(best_scores).mean(axis=0) if best_scores else pd.Series({
+                    "name": model_repr, "r2": 0.0, "explained_variance": 0.0, 
+                    "mean_squared": 0.0, "mean_absolute": 0.0, "rmse": 0.0
+                })
 
             def _df(dataframe):
                 return {
@@ -626,7 +684,13 @@ def _evaluate_regression(train, test, fake, metadata, eval):
                     "RMSE": dataframe.rmse,
                 }
 
-            best_r2_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            if i < len(params['param']):
+                best_r2_scores.append(_df(_calc(model_class(**params['param'][i]))))
+            else:
+                best_r2_scores.append({
+                    "name": model_repr, "r2": 0.0, "explained_variance": 0.0, 
+                    "MAE": 0.0, "RMSE": 0.0
+                })
             i+=1
 
     if eval is None:

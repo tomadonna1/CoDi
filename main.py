@@ -40,6 +40,7 @@ flags.DEFINE_integer('output_size', None, help='output_size')
 flags.DEFINE_string('activation', 'relu', help='activation')
 
 # Training
+flags.DEFINE_integer('num_samples', 100, help='number of synthetic samples to generate')  
 flags.DEFINE_integer('training_batch_size', 2100, help='batch size')
 flags.DEFINE_integer('eval_batch_size', 2100, help='batch size')
 flags.DEFINE_integer('T', 50, help='total diffusion steps')
@@ -47,7 +48,8 @@ flags.DEFINE_float('beta_1', 0.00001, help='start beta value')
 flags.DEFINE_float('beta_T', 0.02, help='end beta value')
 flags.DEFINE_float('lr_con', 2e-03, help='target learning rate')
 flags.DEFINE_float('lr_dis', 2e-03, help='target learning rate')
-flags.DEFINE_integer('total_epochs_both', 20000, help='total training steps')
+# flags.DEFINE_integer('total_epochs_both', 20000, help='total training steps')
+flags.DEFINE_integer('total_epochs_both', 30, help='total training steps')
 flags.DEFINE_float('grad_clip', 1., help="gradient norm clipping")
 flags.DEFINE_bool('parallel', False, help='multi gpu training')
 
